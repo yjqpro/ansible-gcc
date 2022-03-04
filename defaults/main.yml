@@ -1,5 +1,4 @@
+gcc_enabled: yes # Enable module
 
-gcc_enabled: yes                       # Enable module
-
-gcc_version: "-8"
-gcc_priority: 80
+gcc_version: '-9'
+gcc_priority: 90

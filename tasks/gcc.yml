@@ -3,7 +3,15 @@
 
 - name: Include OS specific vars
   tags: gcc
-  include_vars: "{{ ansible_os_family }}.yml"
+  include_vars: '{{ ansible_os_family }}.yml'
+
+- name: install dirmngr
+  apt:
+    state: present
+    package: dirmngr
+    update_cache: yes
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+  become: yes
 
 - name: gcc | Install C++ toolchain PPA
   apt_repository: repo='ppa:ubuntu-toolchain-r/test' update_cache=yes
@@ -14,12 +22,16 @@
     - package
     - gcc
 
+- name: Output gcc_version
+  debug:
+    var: gcc_version
+
 - name: gcc | Install C++ compiler (Debian based)
   action: "{{ ansible_pkg_mgr}} name={{ item }} state={{ gcc_pkg_state|default('present') }}"
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
   with_items:
-   - gcc{{ gcc_version }}
-   - g++{{ gcc_version }}
+    - gcc{{ gcc_version }}
+    - g++{{ gcc_version }}
   become: yes
   tags:
     - package
@@ -47,8 +59,8 @@
   action: "{{ ansible_pkg_mgr}} name={{ item }} state={{ gcc_pkg_state|default('present') }}"
   when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
   with_items:
-   - gcc{{ gcc_version }}
-   - gcc-c++{{ gcc_version }}
+    - gcc{{ gcc_version }}
+    - gcc-c++{{ gcc_version }}
   become: yes
   tags:
     - package
@@ -86,25 +98,40 @@
 - name: gcc | Configure gcc alternatives
   alternatives: name={{ item.name }} link={{ item.link }} path={{ item.path }}
   with_items:
-  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc{{ cpp_version }}", priority: "{{ gcc_priority }}" }
-  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp{{ cpp_version }}", priority: "{{ gcc_priority }}" }
-  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++{{ cpp_version }}", priority: "{{ gcc_priority }}" }
-#  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.9", priority: "20" }
-#  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.9", priority: "20" }
-#  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.9", priority: "20" }
-#  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.8", priority: "10" }
-#  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.8", priority: "10" }
-#  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.8", priority: "10" }
-#  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.7", priority: "0" }
-#  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.7", priority: "0" }
-#  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.7", priority: "0" }
-#  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.6", priority: "-10" }
-#  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.6", priority: "-10" }
-#  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.6", priority: "-10" }
+    - {
+        name: gcc,
+        link: /usr/bin/gcc,
+        path: '{{ gcc_dir }}gcc{{ cpp_version }}',
+        priority: '{{ gcc_priority }}',
+      }
+    - {
+        name: cpp,
+        link: /usr/bin/cpp,
+        path: '{{ gcc_dir }}cpp{{ cpp_version }}',
+        priority: '{{ gcc_priority }}',
+      }
+    - {
+        name: g++,
+        link: /usr/bin/g++,
+        path: '{{ gcc_dir }}g++{{ cpp_version }}',
+        priority: '{{ gcc_priority }}',
+      }
+  #  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.9", priority: "20" }
+  #  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.9", priority: "20" }
+  #  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.9", priority: "20" }
+  #  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.8", priority: "10" }
+  #  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.8", priority: "10" }
+  #  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.8", priority: "10" }
+  #  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.7", priority: "0" }
+  #  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.7", priority: "0" }
+  #  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.7", priority: "0" }
+  #  - { name: gcc, link: /usr/bin/gcc, path: "{{ gcc_dir }}gcc-4.6", priority: "-10" }
+  #  - { name: cpp, link: /usr/bin/cpp, path: "{{ gcc_dir }}cpp-4.6", priority: "-10" }
+  #  - { name: g++, link: /usr/bin/g++, path: "{{ gcc_dir }}g++-4.6", priority: "-10" }
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-        and not( (gcc_dir is undefined) or (gcc_dir is none) or (gcc_dir | trim == '') )
-        and not( (cpp_version is undefined) or (cpp_version is none) or (cpp_version | trim == '') )
-        and ansible_distribution_version is version('18.10', '<=')
+    and not( (gcc_dir is undefined) or (gcc_dir is none) or (gcc_dir | trim == '') )
+    and not( (cpp_version is undefined) or (cpp_version is none) or (cpp_version | trim == '') )
+    and ansible_distribution_version is version('18.10', '<=')
   become: yes
   tags:
     - alternatives
@@ -137,11 +164,17 @@
   #action: command name={{ item.name }} link={{ item.link }} path={{ item.path }}
   action: command update-alternatives --install {{ gcc_dir }}/{{ item.name }} {{ item.name }} {{ item.link }}/gcc{{ item.version }} {{ gcc_priority }} --slave {{ item.link }}/g++ g++ {{ item.link }}/g++{{ item.version }} --slave {{ item.link }}/gcov gcov {{ item.link }}/gcov{{ item.version }}
   with_items:
-  - { name: gcc, link: /usr/bin/, path: "{{ gcc_dir }}gcc{{ cpp_version }}", version: "{{ gcc_version }}", priority: "{{ gcc_priority }}" }
+    - {
+        name: gcc,
+        link: /usr/bin/,
+        path: '{{ gcc_dir }}gcc{{ cpp_version }}',
+        version: '{{ gcc_version }}',
+        priority: '{{ gcc_priority }}',
+      }
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-        and not( (gcc_dir is undefined) or (gcc_dir is none) or (gcc_dir | trim == '') )
-        and not( (cpp_version is undefined) or (cpp_version is none) or (cpp_version | trim == '') )
-        and ansible_distribution_version is version('19.04', '>=')
+    and not( (gcc_dir is undefined) or (gcc_dir is none) or (gcc_dir | trim == '') )
+    and not( (cpp_version is undefined) or (cpp_version is none) or (cpp_version | trim == '') )
+    and ansible_distribution_version is version('19.04', '>=')
   become: yes
   tags:
     - alternatives
@@ -152,8 +185,8 @@
 - name: gcc | Display gcc link after
   action: command update-alternatives --list gcc
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
-        and not( (gcc_dir is undefined) or (gcc_dir is none) or (gcc_dir | trim == '') )
-        and not( (cpp_version is undefined) or (cpp_version is none) or (cpp_version | trim == '') )
+    and not( (gcc_dir is undefined) or (gcc_dir is none) or (gcc_dir | trim == '') )
+    and not( (cpp_version is undefined) or (cpp_version is none) or (cpp_version | trim == '') )
   become: yes
   ignore_errors: true
   tags:
@@ -163,7 +196,7 @@
 
 - name: gcc | Install required packages
   action: "{{ ansible_pkg_mgr }} state={{ util_package_state|default('present') }} name={{ item }}"
-  with_items: "{{ gcc_package_list }}"
+  with_items: '{{ gcc_package_list }}'
   become: yes
   ignore_errors: true
   tags:

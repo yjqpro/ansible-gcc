@@ -1,4 +1,4 @@
 ---
-gcc_version: ""
+gcc_version: '-9'
 
 gcc_package_list: []
